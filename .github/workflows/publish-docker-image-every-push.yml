@@ -52,6 +52,12 @@ jobs:
       - name: Get ECR password (temporary)
         id: get-ecr-password
         run: echo "::set-output name=password::$(aws ecr get-login-password)"
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: 462686933031.dkr.ecr.ap-southeast-1.amazonaws.com
+          username: AWS
+          password: ${{ steps.get-ecr-password.outputs.password }} 
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
         with:

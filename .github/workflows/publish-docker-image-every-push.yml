@@ -57,7 +57,7 @@ jobs:
           IMAGE_TAG: latest
         run: |
           # Build a docker container and push it to ECR 
-          docker build -t --build-arg COIN=ahap --build-arg COIN_NAME=HAP --build-arg CACHE_EXCHANGE_RATES_PERIOD= \
+          docker build --build-arg COIN=ahap --build-arg COIN_NAME=HAP --build-arg CACHE_EXCHANGE_RATES_PERIOD= \
           --build-arg DISABLE_READ_API=false --build-arg API_PATH= \
           --build-arg NETWORK_PATH= \
           --build-arg DISABLE_WEBAPP=false \
@@ -68,7 +68,7 @@ jobs:
           --build-arg CACHE_ADDRESS_WITH_BALANCES_UPDATE_INTERVAL= \
           --build-arg DISABLE_BRIDGE_MARKET_CAP_UPDATER=false \
           --build-arg CACHE_BRIDGE_MARKET_CAP_UPDATE_INTERVAL= \
-          --build-arg SOCKET_ROOT= $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG . -f ./docker/Dockerfile
+          --build-arg SOCKET_ROOT= -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG . -f ./docker/Dockerfile
           echo "Pushing image to ECR..."
           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
       

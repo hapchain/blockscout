@@ -10,101 +10,43 @@ env:
   NEXT_RELEASE_VERSION: 5.0.0
 
 jobs:
-  push_to_registry:
-    name: Push Docker image to Docker Hub
+  delivery:
     runs-on: ubuntu-latest
-    outputs:
-      release-version: ${{ steps.output-step.outputs.release-version }}
-      short-sha: ${{ steps.output-step.outputs.short-sha }}
-      # registry: ${{ steps.login-ecr.outputs.registry }}
-      # docker_username: ${{ steps.login-ecr.outputs.docker_username_462686933031_dkr_ecr_ap_southeast_1_amazonaws_com }} # More information on these outputs can be found below in the 'Docker Credentials' section
-      # docker_password: ${{ steps.login-ecr.outputs.docker_password_462686933031_dkr_ecr_ap_southeast_1_amazonaws_com }}
+
+    # if: github.event_name == 'release'
+
     steps:
-      - name: Check out the repo
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v2
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v1
+
+      - name: Cache Docker layers
+        uses: actions/cache@v2
+        with:
+          path: /tmp/.buildx-cache
+          key: ${{ runner.os }}-buildx-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-buildx-
+
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v1
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-southeast-1
-          # registry: 462686933031.dkr.ecr.ap-southeast-1.amazonaws.com
+
       - name: Login to Amazon ECR
         id: login-ecr
         uses: aws-actions/amazon-ecr-login@v1
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v2
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      - name: Extract metadata (tags, labels) for Docker
-        id: meta
-        uses: docker/metadata-action@98669ae865ea3cffbcbaa878cf57c20bbf1c6c38
-        with:
-          images: ${{ secrets.AWS_ECR_REPO }}/blockscout
-      - name: Add SHORT_SHA env property with commit short sha
-        run: echo "SHORT_SHA=`echo ${GITHUB_SHA} | cut -c1-8`" >> $GITHUB_ENV
-
       - name: Add outputs
         run: |
-          echo "::set-output name=release-version::${{ env.NEXT_RELEASE_VERSION }}"
-          echo "::set-output name=short-sha::${{ env.SHORT_SHA }}"
-        id: output-step
-      - name: Build, tag, and push the image to Amazon ECR
-        id: build-image
-        env:
-          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
-          ECR_REPOSITORY: ${{ secrets.AWS_ECR_REPO }}
-          IMAGE_TAG: latest
-        run: |
-          # Build a docker container and push it to ECR 
-          docker build --build-arg COIN=ahap --build-arg COIN_NAME=HAP --build-arg CACHE_EXCHANGE_RATES_PERIOD= \
-          --build-arg DISABLE_READ_API=false --build-arg API_PATH= \
-          --build-arg NETWORK_PATH= \
-          --build-arg DISABLE_WEBAPP=false \
-          --build-arg DISABLE_WRITE_API=false \
-          --build-arg CACHE_ENABLE_TOTAL_GAS_USAGE_COUNTER= \
-          --build-arg WOBSERVER_ENABLED=false \
-          --build-arg ADMIN_PANEL_ENABLED=false \
-          --build-arg CACHE_ADDRESS_WITH_BALANCES_UPDATE_INTERVAL= \
-          --build-arg DISABLE_BRIDGE_MARKET_CAP_UPDATER=false \
-          --build-arg CACHE_BRIDGE_MARKET_CAP_UPDATE_INTERVAL= \
-          --build-arg SOCKET_ROOT= -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG . -f ./docker/Dockerfile
-          echo "Pushing image to ECR..."
-          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
-      
-  #     - name: Build and push Docker image
-  #       uses: docker/build-push-action@v3
-  #       with:
-  #         context: .
-  #         file: ./docker/Dockerfile
-  #         registry: ${{ steps.login-ecr.outputs.registry }}
-  #         # username: AWS  
-  #         # password: ${{ steps.get-ecr-password.outputs.password }} 
-  #         push: true
-  #         cache-from: type=registry,ref=blockscout/blockscout:buildcache
-  #         cache-to: type=registry,ref=blockscout/blockscout:buildcache,mode=max
-  #         tags: blockscout/blockscout:latest, blockscout/blockscout:${{ env.NEXT_RELEASE_VERSION }}-prerelease-${{ env.SHORT_SHA }}
-  #         build-args: |
-  #           CACHE_EXCHANGE_RATES_PERIOD=
-  #           DISABLE_READ_API=false
-  #           API_PATH=
-  #           NETWORK_PATH=
-  #           DISABLE_WEBAPP=false
-  #           DISABLE_WRITE_API=false
-  #           CACHE_ENABLE_TOTAL_GAS_USAGE_COUNTER=
-  #           WOBSERVER_ENABLED=false
-  #           ADMIN_PANEL_ENABLED=false
-  #           CACHE_ADDRESS_WITH_BALANCES_UPDATE_INTERVAL=
-  #           DISABLE_BRIDGE_MARKET_CAP_UPDATER=false
-  #           CACHE_BRIDGE_MARKET_CAP_UPDATE_INTERVAL=
-  #           SOCKET_ROOT=
-  # # tests:
-  # #   needs: push_to_registry
-  # #   uses: blockscout/blockscout-ci-cd/.github/workflows/e2e_new.yaml@master
-  # #   with:
-  # #     blockscoutImage: blockscout/blockscout:${{ needs.push_to_registry.outputs.release-version }}-prerelease-${{ needs.push_to_registry.outputs.short-sha }}
-  # #     blockscoutIngressHost: e2e-blockscout-$GITHUB_SHA_SHORT
-  # #     frontendIngressHost: e2e-blockscout-$GITHUB_SHA_SHORT
-  # #     gethIngressHost: e2e-geth-$GITHUB_SHA_SHORT
-  # #     scVerifierIngressHost: e2e-sc-verifier-$GITHUB_SHA_SHORT
-  # #   secrets: inherit
+          echo "registry: ${{ steps.login-ecr.outputs.registry }}"
+      - name: Build, tag, and push docker image to AWS ECR
+        uses: docker/build-push-action@v2
+        with:
+          push: true
+          tags: |           
+            ${{ steps.login-ecr.outputs.registry }}/blockscout:latest
+          cache-from: type=local,src=/tmp/.buildx-cache
+          cache-to: type=local,dest=/tmp/.buildx-cache

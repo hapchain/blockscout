@@ -48,12 +48,17 @@ jobs:
           echo "::set-output name=release-version::${{ env.NEXT_RELEASE_VERSION }}"
           echo "::set-output name=short-sha::${{ env.SHORT_SHA }}"
         id: output-step
-
+      - name: Get ECR password (temporary)
+        id: get-ecr-password
+        run: echo "::set-output name=password::$(aws ecr get-login-password)"
       - name: Build and push Docker image
         uses: docker/build-push-action@v3
         with:
           context: .
           file: ./docker/Dockerfile
+          registry: ${{ steps.login-ecr.outputs.registry }}
+          username: AWS  
+          password: ${{ steps.get-ecr-password.outputs.password }} 
           push: true
           cache-from: type=registry,ref=blockscout/blockscout:buildcache
           cache-to: type=registry,ref=blockscout/blockscout:buildcache,mode=max

@@ -55,3 +55,4 @@ screenshots/
 *.iml
 
 .vscode
+docker-compose/envs/common-blockscout.env

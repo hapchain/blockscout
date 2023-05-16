@@ -9,39 +9,53 @@ services:
     command: redis-server
     volumes:
       - ./redis-data:/data
-
-  # db:
-  #   image: postgres:14
-  #   restart: always
-  #   container_name: 'postgres'
-  #   environment:
-  #       POSTGRES_PASSWORD: ''
-  #       POSTGRES_USER: 'postgres'
-  #       POSTGRES_HOST_AUTH_METHOD: 'trust'
-  #   ports:
-  #     - 7432:5432
+  db2:
+    image: postgres:14
+    restart: always
+    container_name: 'postgres2'
+    environment:
+        POSTGRES_PASSWORD: ''
+        POSTGRES_USER: 'postgres'
+        POSTGRES_HOST_AUTH_METHOD: 'trust'
+    ports:
+      - 6432:5432
+    volumes:
+      - ./data:/var/lib/postgresql/data
+  db:
+    image: postgres:14
+    restart: always
+    container_name: 'postgres'
+    volumes:
+      - ./db/blockscout.sql:/docker-entrypoint-initdb.d/blockscout.sql
+    environment:
+        POSTGRES_PASSWORD: ''
+        POSTGRES_USER: 'postgres'
+        POSTGRES_HOST_AUTH_METHOD: 'trust'
+        POSTGRES_DB: 'blockscout'
+    ports:
+      - 7432:5432
 
   blockscout:
     depends_on:
-      # - db
+      - db
       - smart-contract-verifier
       - redis_db
     image: 462686933031.dkr.ecr.ap-southeast-1.amazonaws.com/blockscout:latest
     # build:
     #   context: ..
     #   dockerfile: ./docker/Dockerfile
-    #   args:
-    #     CACHE_EXCHANGE_RATES_PERIOD: ""
-    #     DISABLE_READ_API: "false"
-    #     API_PATH: "/"
-    #     NETWORK_PATH: "/"
-    #     DISABLE_WEBAPP: "false"
-    #     DISABLE_WRITE_API: "false"
-    #     CACHE_ENABLE_TOTAL_GAS_USAGE_COUNTER: ""
-    #     CACHE_ADDRESS_WITH_BALANCES_UPDATE_INTERVAL: ""
-    #     SOCKET_ROOT: "/"
-    #     WOBSERVER_ENABLED: "false"
-    #     ADMIN_PANEL_ENABLED: ""
+      # args:
+      #   CACHE_EXCHANGE_RATES_PERIOD: ""
+      #   DISABLE_READ_API: "false"
+      #   API_PATH: "/"
+      #   NETWORK_PATH: "/"
+      #   DISABLE_WEBAPP: "false"
+      #   DISABLE_WRITE_API: "false"
+      #   CACHE_ENABLE_TOTAL_GAS_USAGE_COUNTER: ""
+      #   CACHE_ADDRESS_WITH_BALANCES_UPDATE_INTERVAL: ""
+      #   SOCKET_ROOT: "/"
+      #   WOBSERVER_ENABLED: "false"
+      #   ADMIN_PANEL_ENABLED: ""
     restart: always
     container_name: 'blockscout'
     # links:
